@@ -1,34 +1,53 @@
+'''This file contains the Lattice class and several helper functions.
+The lattice class is meant to act like a function for the purposes of
+integration. It consists of a lattice of points at which the parent function
+had already been evaluated. In this way, integration becomes simply multipying
+lattices together and summing up the indices. This gives a performance boost
+compared to the technique of evaluating a true function every time.
+
+A result of this teqnique is that a new tactic must be used to evaluate infinite
+integrals. Here, three substitutions are used, and the appropriate differential
+terms are created for each.
+For (-inf, inf),    y = 2 / (1 + e**(sigma(x-mu)))-1.
+For (-inf, b),      y = 1 / (1 + e**(sigma(x-a))).
+For (a, inf),       y = 1 / (1 + e**(-sigma(x-a))).'''
+
 from numpy import *
 
 #pointCount must be 4 or more
 pointCount = 100
 
-#(a, b, sigma, mu)
+#format of bounds is (lower, upper, sigma, mu)
 
 def prod(inputList):
+    #multiply all of the elements of a list together
     output = 1
     for element in inputList:
         output *= element
     return output
 
 def constructDifferentialLattice(bounds):
+    '''This corresponds to the differential term of an integral.
+    For example, r**2 * sin(theta) for spherical coordinates. Due to the way
+    infinte bounds are handled, some strange substitutions are made.
+    See explanation at top.'''
     base = arange(1/(2 * pointCount), 1, 1 / pointCount)
     vals = []
     for bound in bounds:
         val = findSwitchNumber(bound)
-        if val == 0:
+        if val == 0:#(a, b)
             a = bound[0]
             b = bound[1]
             vals.append(pointCount * [b - a])
-        elif val == 1:
+        elif val == 1:#(a, inf)
             a = bound[0]
             sigma = 1/bound[2]
             vals.append(1/(sigma*base))
-        elif val == 2:
+        elif val == 2:#(-inf, b)
             b = bound[1]
             sigma = 1/bound[2]
             vals.append(1/(sigma*base))
-        else:
+        else:#(-inf, inf)
             sigma = 1/bound[2]
             mu = bound[3]
             vals.append(1/(sigma*(base-base**2)))
@@ -41,40 +60,45 @@ def constructDifferentialLattice(bounds):
     return Lattice(lattice, vals, bounds)
 
 def findSwitchNumber(bound):
+    #finds the "switch number". For use in pseudo switch blocks.
     if bound[0] == -inf:
-        if bound[1] == inf:
+        if bound[1] == inf:#(-inf, inf)
             return 3
-        else:
+        else:#(-inf, b)
             return 2
-    elif bound[1] == inf:
+    elif bound[1] == inf:#(a, inf)
         return 1
-    else:
+    else:#(a, b)
         return 0
 
 def constructSamplePoints(bounds):
+    #Construct the set of points to be sampled for the lattice. Due to the way
+    #infinte bounds are handled, the point distribution can be quite strange.
+    #See explanation at top.
     base = arange(1/(2 * pointCount), 1, 1 / pointCount)
     meshList = []
     for bound in bounds:
         val = findSwitchNumber(bound)
-        if val == 0:
+        if val == 0:#(a, b)
             a = bound[0]
             b = bound[1]
             meshList.append(base*(b-a)+a)
-        elif val == 1:
+        elif val == 1:#(a, inf)
             b = bound[1]
             sigma = 1 / bound[2]
             meshList.append(log(base) / sigma + b)
-        elif val == 2:
+        elif val == 2:#(-inf, b)
             a = bound[0]
             sigma = 1 / bound[2]
             meshList.append(a - log(base) / sigma)
-        else:
+        else:#(-inf, inf)
             sigma = 1/bound[2]
             mu = bound[3]
             meshList.append(log(1/base - 1)/sigma + mu)
     return meshList
 
 def meshifyPoints(*args):
+    #take n lists and return (listSize)**n points
     outputMesh = []
     for i in range(len(args)):
         outputMesh.append([])
@@ -90,8 +114,8 @@ def meshifyPoints(*args):
     return list(zip(*outputMesh))
 
 def constructLattice(function, bounds):
-    testPoints = constructSamplePoints(bounds)
-    testPoints = meshifyPoints(*testPoints)
+    testPoints = constructSamplePoints(bounds)#[x positions, y positions, etc]
+    testPoints = meshifyPoints(*testPoints)#[p1, p2, p3, etc]
     vals = []
     for point in testPoints:
         vals.append(function(*point))
@@ -100,6 +124,7 @@ def constructLattice(function, bounds):
     return Lattice(lattice, vals, bounds)
 
 def splineInterpolationFunction(inputY, bounds):
+    #cubic interpolation and extrapolation function for n dimensional input list/function
     if len(bounds) == 0:
         return lambda : inputY
     xVals = (constructSamplePoints(bounds))[0]
@@ -160,6 +185,8 @@ class Lattice:
         self.bounds = bounds
 
     def __add__(self, other):
+        if type(other) != Lattice:
+            return NotImplemented
         newLat = self.lattice + other.lattice
         newFlat = self.flatLattice + other.flatLattice
         return Lattice(newLat, newFlat, self.bounds)
@@ -168,21 +195,31 @@ class Lattice:
         if type(other) != Lattice:
             return Lattice(self.lattice * other, self.flatLattice * other, self.bounds)
         else:
-            return Lattice(self.lattice * other.lattice, self.flatLattice * other.flatLattice, self.bounds)
+            try:
+                return Lattice(self.lattice * other.lattice, self.flatLattice * other.flatLattice, self.bounds)
+            except:
+                return NotImplemented
 
     def __truediv__(self, other):
         if type(other) != Lattice:
             return Lattice(self.lattice / other, self.flatLattice / other, self.bounds)
         else:
-            return Lattice(self.lattice / other.lattice, self.flatLattice / other.flatLattice, self.bounds)
+            try:
+                return Lattice(self.lattice / other.lattice, self.flatLattice / other.flatLattice, self.bounds)
+            except:
+                return NotImplemented
 
     def __rmul__(self, other):
-        return self * other
+        Try:
+            return self * other
+        Except:
+            Raise(TypeError)
 
     def __str__(self):
         return str(self.lattice)
 
     def integrate(self):
+        #Should only be done once differential lattice has been multiplied in.
         return sum(self.flatLattice)
 
     def interpolationFunction(self):
