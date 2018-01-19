@@ -1,7 +1,12 @@
+'''This file contains the Quantum System class and
+is in charge of the perturbation itself.'''
+
 import Quantum_Perturbation.PsuedoFunctionLattice as lat
 from numpy import *
 
 def formatEnergyStuff(inputStuff):
+    #accepts energy information in the form of [[elevel,function],[elevel,function], etc.]
+    #and sorts it by energy level. It also counts degeneracy levels with a one percent leeway.
     inputStuff.sort(key = lambda x: x[0])
     sizes = []
     for i in range(len(inputStuff)):
