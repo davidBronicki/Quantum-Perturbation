@@ -17,7 +17,10 @@ def eigenFunction(n):
     return lambda x: const * sin(const2*x)
 
 def oneDim():
+    #one dimensional infinite square well testing function
+    
     def graph(*args):
+        #helper function for quick graphing
         n = 1000
         dx = 1 / n
         input = arange(dx / 2, 1, dx)
@@ -28,7 +31,8 @@ def oneDim():
             plt.plot(input, output)
         plt.show()
 
-    bounds = [(0, 1)]
+    #generate a one dimensional infinite square well
+    bounds = [(0, length)]
     size = 50
     energyStuff =[]
     for i in range(1, size+1):
@@ -36,8 +40,9 @@ def oneDim():
 
     sys = qp.QuantumSystem(energyStuff, bounds, lambda x: 1, 'function')
 
+    #perturb the system with a higher energy oscillator
     omega = 80
-    divs = 50
+    divs = 50 #number of perturbations to perform
     perturbationFunction = lambda x: .5*mass*omega**2*(x-.5)**2/divs
     plt.plot(sys.energyLevels)
     for i in range(divs):
@@ -52,12 +57,15 @@ def oneDim():
         graph(sys.getState(n), eigenFunction(n+1))
 
 def twoDim():
+    #two dimensional infinite square well testing function
+    
     def generate2DFunction(n, m):
         f1 = eigenFunction(n)
         f2 = eigenFunction(m)
         return lambda x, y: f1(x) * f2(y)
 
     def graph(*args):
+        #helper function for quick graphing
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
@@ -82,7 +90,8 @@ def twoDim():
             i += 1
         plt.show()
 
-    bounds = [(0,1),(0,1)]
+    #generate a two dimensional infinite square well
+    bounds = [(0,length),(0,length)]
     size = 20
     energyStuff = []
     energyGraphsOriginal = []
@@ -97,16 +106,15 @@ def twoDim():
 
     sys = qp.QuantumSystem(energyStuff, bounds, lambda x, y: 1, 'function')
 
+    #perturb system with a high energy quantum oscillator
     omega = 40
-    divs = 10
+    divs = 10 #number of perturbations to perform
     perturbationFunction = lambda x, y: .5 *mass* omega**2*((x-.5)**2 + (y-.5)**2)/divs
     plt.plot(sys.energyLevels)
     for i in range(divs):
         t0 = time()
         sys = sys.perturb(perturbationFunction)
         sys.normalize()
-        # if i % 2 == 0:
-        #     sys.normalize()
         print('completed a step in ', time() - t0, ' seconds')
     print(sys.energyLevels)
     plt.plot(sys.energyLevels)
